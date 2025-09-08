@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pika
+python-dotenv
+sse-starlette
+pytest
+httpx
+tika
+chromadb
+openai
+python-multipart
