@@ -171,43 +171,27 @@ async def api_audit(req: BatchAuditRequest):
             "userId": user_id,
             "fileName": file_name
         }
-        try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as client:
-                kb_resp = await client.post(kb_url, json=kb_body)
-                kb_resp.raise_for_status()
-                kb_json = kb_resp.json()
-                yield _sse_event("vectorize_ok", {
-                    "file_id": kb_json.get("id", file_id),
-                    "user_id": kb_json.get("userId", user_id),
-                    "embedding_result": bool(kb_json.get("embedding_result", None))
-                })
-        except httpx.RequestError as e:
-            yield _sse_event("error", {"stage": "vectorize", "message": f"request error: {str(e)}"})
-            yield _sse_event("done", {"message": "failed"})
-            return
-        except httpx.HTTPStatusError as e:
-            text = e.response.text if e.response is not None else ""
-            yield _sse_event("error", {"stage": "vectorize", "status": e.response.status_code if e.response else -1, "message": text})
-            yield _sse_event("done", {"message": "failed"})
-            return
+        async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as client:
+            kb_resp = await client.post(kb_url, json=kb_body)
+            print(f"文档向量化返回的结果: {kb_resp}")
+            kb_json = kb_resp.json()
+            yield _sse_event("vectorize_ok", {
+                "file_id": kb_json.get("id", file_id),
+                "user_id": kb_json.get("userId", user_id),
+                "embedding_result": bool(kb_json.get("embedding_result", None))
+            })
 
         # 3) 阶段A：先完整提取所有审计要求（不立刻审计）
         requirements: List[Dict[str, Any]] = []
-        try:
-            idx = 0
-            async for item, meta in extract_audit_requirements_iter(req.requirements_content, session_id, group_size):
-                prompt = _normalize_requirement(item)
-                requirements.append({
-                    "index": idx,
-                    "requirement": prompt,
-                    "meta": meta
-                })
-                idx += 1
-        except Exception as e:
-            # 提取失败
-            yield _sse_event("error", {"stage": "extract", "message": str(e)})
-            yield _sse_event("done", {"message": "failed", "session_id": session_id})
-            return
+        idx = 0
+        async for item, meta in extract_audit_requirements_iter(req.requirements_content, session_id, group_size):
+            prompt = _normalize_requirement(item)
+            requirements.append({
+                "index": idx,
+                "requirement": prompt,
+                "meta": meta
+            })
+            idx += 1
 
         # 将“全部提取结果”一次性通知前端
         yield _sse_event("requirements_ready", {

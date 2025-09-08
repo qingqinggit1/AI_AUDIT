@@ -350,4 +350,4 @@ if __name__ == "__main__":
     主函数入口：启动FastAPI服务
     """
     print("启动FastAPI服务...")
-    uvicorn.run(app, host="0.0.0.0", port=9900)
+    uvicorn.run(app, host="127.0.0.1", port=9900)

@@ -58,7 +58,7 @@ async def start_server(host, port, mcp_config, select_tool_names):
     await server_instance.serve()
 
 @click.command()
-@click.option('--host', default='localhost')
+@click.option('--host', default='127.0.0.1')
 @click.option('--port', default=10000)
 @click.option('--mcp', default="mcp_config.json", help='MCP 配置文件路径')
 @click.option('--select_tool_names', default="search_audit_db", help='使用的内部工具，逗号分隔')
