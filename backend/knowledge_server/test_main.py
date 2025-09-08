@@ -98,7 +98,7 @@ class KnowledgeBaseTestCase(unittest.TestCase):
         file_name = "tesla.txt"
 
         data = {
-            "userId": 123456,
+            "userId": 2,
             "fileId": 987,
             "folderId": 543,
             "fileType": "txt"
