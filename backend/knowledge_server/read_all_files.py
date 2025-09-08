@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 # @Date  : 2025/8/12 09:00
 # @File  : read_all_files.py.py
-# @Author: johnson
-# @Contact : github: johnson7788
 # @Desc  : 读取各种个样的文件
 
 import os

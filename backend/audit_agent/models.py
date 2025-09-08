@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 # @Date  : 2025/8/6 10:59
 # @File  : models.py.py
-# @Author: johnson
-# @Contact : github: johnson7788
 # @Desc  :
 import os
 import httpx

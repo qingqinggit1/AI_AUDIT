@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 # @Date  : 2025/8/6 10:48
 # @File  : tools.py
-# @Author: johnson
-# @Contact : github: johnson7788
 # @Desc  : Agent使用的工具, 设置3个知识库工具
 import logging
 import httpx

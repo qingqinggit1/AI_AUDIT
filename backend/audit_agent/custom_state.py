@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 # @Date  : 2025/8/11 10:34
 # @File  : custom_state.py
-# @Author: johnson
-# @Contact : github: johnson7788
 # @Desc  :
 from typing import Any, Literal,Dict
 from typing import Annotated, NotRequired

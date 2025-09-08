@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 # @Date  : 2025/8/20 09:35
 # @File  : prompt.py.py
-# @Author: johnson
-# @Contact : github: johnson7788
 # @Desc  :
 SYSTEM_INSTRUCTION = """
 【角色设定】
