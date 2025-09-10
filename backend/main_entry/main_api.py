@@ -54,6 +54,15 @@ class AuditOneRequest(BaseModel):
     one_requirement: str = Field(..., description="单条审计要求")
     file_id: str = Field(..., description="要被审计的文件id，这个文件必须是经过向量化的")
 
+# 预分片批量审计请求模型
+class PreSplitBatchAuditRequest(BaseModel):
+    requirements: List[str] = Field(..., description="预先提取的审计要求列表")
+    docs_contents: List[str] = Field(..., min_items=1, description="需要被审计的文档内容（可多份）")
+    # 可选：透传/或由后端生成
+    user_id: int = Field(0, description="知识库向量化所需的用户ID，未提供则用0")
+    file_id: Optional[int] = Field(None, description="知识库向量化的fileId，不传则后端生成")
+    file_name: Optional[str] = Field(None, description="知识库fileName，不传则后端生成")
+
 # -----------------------------
 # SSE 工具函数
 # -----------------------------

@@ -58,3 +58,4 @@ cache
 backend/knowledge_server/cache
 backend/main_entry/
 backend/knowledge_server/temp_download/
+*.xlsx
