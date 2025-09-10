@@ -345,6 +345,94 @@ def vectorize_text_endpoint(body: TextVectorizeBody):
         raise HTTPException(status_code=500, detail=f"文本向量化失败: {str(e)}")
 
 
+class TextListVectorizeBody(BaseModel):
+    """
+    纯文本列表向量化请求体。
+    """
+    content: List[str]
+    fileId: int
+    fileName: str
+    userId: Optional[int] = 0
+    fileType: Optional[str] = None
+    url: Optional[str] = ""
+    folderId: Optional[int] = 0
+
+
+def process_text_list_content(
+    file_name: str,
+    documents: List[str],
+    id: int,
+    user_id: int = 0,
+    file_type: Optional[str] = None,
+    folder_id: int = 0,
+    url: str = ""
+):
+    """
+    直接对纯文本列表进行向量化并落库（Chroma）。
+    """
+    logger.info("开始处理纯文本列表向量化")
+    if not documents:
+        raise ValueError("content 列表不能为空")
+
+    # 与现有流程保持一致的环境变量校验
+    if not os.getenv("ALI_API_KEY"):
+        logger.error("ALI_API_KEY环境变量未设置")
+        raise ValueError("ALI_API_KEY环境变量未设置")
+
+    logger.info("初始化 embedding 模型与 Chroma")
+    embedder = embedding_utils.EmbeddingModel()
+    chroma = embedding_utils.ChromaDB(embedder)
+
+    logger.info(f"插入文本向量：fileId={id}, userId={user_id}")
+    embedding_result = chroma.insert_file_vectors(
+        file_name=file_name,
+        user_id=user_id or 0,
+        file_id=id,
+        file_type=file_type or "unknown",
+        url=url or "",
+        folder_id=folder_id or 0,
+        documents=documents
+    )
+
+    result = {
+        "id": id,
+        "file_name": file_name,
+        "userId": user_id or 0,
+        "fileType": file_type or "unknown",
+        "url": url or "",
+        "folderId": folder_id or 0,
+        "embedding_result": embedding_result
+    }
+    logger.info("纯文本列表向量化完成")
+    return result
+
+
+# ===== 纯文本列表向量化接口 =====
+@app.post("/vectorize/text_list")
+def vectorize_text_list_endpoint(body: TextListVectorizeBody):
+    """
+    纯文本列表向量化：
+    - 必填：content (List[str]), fileId, fileName
+    - 可选：userId(默认0), fileType(None), url(""), folderId(0)
+    """
+    try:
+        logger.info(
+            f"收到文本列表向量化请求: fileId={body.fileId}, fileName={body.fileName}, userId={body.userId}"
+        )
+        return process_text_list_content(
+            file_name=body.fileName,
+            documents=body.content,
+            id=body.fileId,
+            user_id=body.userId or 0,
+            file_type=body.fileType,
+            folder_id=body.folderId or 0,
+            url=body.url or ""
+        )
+    except Exception as e:
+        logger.error(f"文本列表向量化失败: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"文本列表向量化失败: {str(e)}")
+
+
 if __name__ == "__main__":
     """
     主函数入口：启动FastAPI服务
