@@ -316,7 +316,7 @@ async def api_audit_pre_split(req: PreSplitBatchAuditRequest):
             full_text_parts: List[str] = []
             try:
                 # 先初始化Agent
-                audit_wrapper = A2AAuditClientWrapper(session_id=session_id, agent_url=AUDIT_AGENT)
+                audit_wrapper = A2AAuditClientWrapper(session_id=session_id+str(idx), agent_url=AUDIT_AGENT)
                 # 开始审计，prompt审计要求， file_id投标书
                 async for chunk_data in audit_wrapper.generate(user_question=prompt, file_id=str(file_id)):
                     metadata = chunk_data.get("metadata")
