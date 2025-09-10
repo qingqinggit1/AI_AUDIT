@@ -101,7 +101,7 @@ def search_audit_db(keywords: List[str],
             all_search_results.append(item)
             logger.info(f"***审计知识库搜索结果(kw)***: {kw}, item: {item}")
     # 文档的搜索结果
-    print(f"tool_call_id: {tool_call_id}")
+    print(f"tool_call_id: {tool_call_id}，的返回结果: {all_search_results}")
     return Command(update={
         "search_dbs": all_search_results,
         "messages": [ToolMessage(content=contents, tool_call_id=tool_call_id)]
@@ -127,7 +127,7 @@ def audit_db_search_api(user_id: int, query: str, topk=3):
     headers = {'content-type': 'application/json'}
     try:
         # 发送POST请求
-        response = httpx.post(url, json=data, headers=headers, timeout=20.0)
+        response = httpx.post(url, json=data, headers=headers, timeout=20.0, trust_env=False)
 
         # 检查HTTP状态码
         response.raise_for_status()

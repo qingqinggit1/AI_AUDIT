@@ -57,7 +57,7 @@ class AuditOneRequest(BaseModel):
 # 预分片批量审计请求模型
 class PreSplitBatchAuditRequest(BaseModel):
     requirements: List[str] = Field(..., description="预先提取的审计要求列表")
-    docs_contents: List[str] = Field(..., min_items=1, description="需要被审计的文档内容（可多份）")
+    docs_contents: List[str] = Field(..., min_items=1, description="需要被审计的文档内容")
     # 可选：透传/或由后端生成
     user_id: int = Field(0, description="知识库向量化所需的用户ID，未提供则用0")
     file_id: Optional[int] = Field(None, description="知识库向量化的fileId，不传则后端生成")
@@ -226,6 +226,102 @@ async def api_audit(req: BatchAuditRequest):
                     # yield _sse_event("audit_delta", {"index": idx, "chunk": chunk_data})
 
                     # 累加文本
+                    piece = chunk_data.get("text")
+                    if not piece:
+                        print(f"返回的chunk数据不是text，不进行累加: {chunk_data}")
+                        continue
+                    full_text_parts.append(piece)
+            except Exception as e:
+                yield _sse_event("audit_error", {"index": idx, "message": str(e)})
+            finally:
+                full_text = "".join(full_text_parts).strip()
+                yield _sse_event("audit_end", {"index": idx, "result": full_text})
+
+        # 全部结束
+        yield _sse_event("done", {"message": "completed", "session_id": session_id, "total": len(requirements)})
+
+    return StreamingResponse(_event_stream(), media_type="text/event-stream", headers=headers)
+
+
+@app.post("/api/audit_pre_split")
+async def api_audit_pre_split(req: PreSplitBatchAuditRequest):
+    """
+    批量审计入口（预分片）：
+    - requirements: 已经拆分好的要求列表
+    - docs_contents: 已经拆分好的文档段落列表
+    事件顺序：
+       - session
+       - vectorize_ok
+       - requirements_ready (total, items=[{index, requirement}])
+       - audit_begin (index, requirement)
+       - audit_delta (index, chunk)
+       - audit_end   (index, full_text)
+       - done
+    """
+    session_id = uuid.uuid4().hex
+    file_id = req.file_id or int(uuid.uuid4().int % 1_000_000_000)
+    file_name = req.file_name or f"audit_{file_id}.txt"
+    user_id = req.user_id or file_id
+
+    headers = {
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no",
+    }
+
+    async def _event_stream() -> AsyncGenerator[str, None]:
+        # 1) 先回 session
+        yield _sse_event("session", {"session_id": session_id, "file_id": str(file_id)})
+
+        # 2) 文档向量化（一次，给审计用）
+        kb_url = f"{KNOWLEDGE_AGENT.rstrip('/')}/vectorize/text_list"
+        kb_body = {
+            "content": req.docs_contents,
+            "fileId": file_id,
+            "userId": user_id,
+            "fileName": file_name
+        }
+        async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as client:
+            kb_resp = await client.post(kb_url, json=kb_body)
+            kb_resp.raise_for_status()
+            kb_json = kb_resp.json()
+            yield _sse_event("vectorize_ok", {
+                "file_id": kb_json.get("id", file_id),
+                "user_id": kb_json.get("userId", user_id),
+                "embedding_result": bool(kb_json.get("embedding_result", None))
+            })
+
+
+        # 3) 阶段A：直接使用传入的审计要求
+        requirements = [
+            {"index": idx, "requirement": req_text, "meta": {}}
+            for idx, req_text in enumerate(req.requirements)
+        ]
+
+        # 将“全部提取结果”一次性通知前端
+        yield _sse_event("requirements_ready", {
+            "total": len(requirements),
+            "items": requirements
+        })
+
+        # 4) 阶段B：现在才开始逐条审计
+        for req_item in requirements:
+            idx = req_item["index"]
+            prompt = req_item["requirement"]
+            meta = req_item.get("meta", {})
+
+            # 通知前端：开始某条
+            yield _sse_event("audit_begin", {"index": idx, "requirement": prompt, "meta": meta})
+
+            full_text_parts: List[str] = []
+            try:
+                # 先初始化Agent
+                audit_wrapper = A2AAuditClientWrapper(session_id=session_id, agent_url=AUDIT_AGENT)
+                # 开始审计，prompt审计要求， file_id投标书
+                async for chunk_data in audit_wrapper.generate(user_question=prompt, file_id=str(file_id)):
+                    metadata = chunk_data.get("metadata")
+                    if metadata:
+                        print(f"metadata: {metadata}")
                     piece = chunk_data.get("text")
                     if not piece:
                         print(f"返回的chunk数据不是text，不进行累加: {chunk_data}")
